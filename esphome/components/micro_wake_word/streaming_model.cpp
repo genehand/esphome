@@ -56,6 +56,8 @@ bool StreamingModel::load_model(tflite::MicroMutableOpResolver<20> &op_resolver)
     if (this->interpreter_->AllocateTensors() != kTfLiteOk) {
       ESP_LOGE(TAG, "Failed to allocate tensors for the streaming model");
       return false;
+    } else {
+      ESP_LOGD(TAG, "Tensor arena used bytes: %d", this->interpreter_->arena_used_bytes());
     }
 
     // Verify input tensor matches expected values
