@@ -32,8 +32,22 @@ class EpaperModel:
             return cv.Required(name)
         return cv.Optional(name, default=self.get_default(name, fallback))
 
+    def get_extra_schema(self) -> dict:
+        """Return additional schema entries for this model.
+
+        Subclasses may override to inject model-specific config options.
+        The returned dict is merged into the model schema.
+        """
+        return {}
+
     def get_constructor_args(self, config) -> tuple:
         return ()
+
+    async def to_code(self, var, config) -> None:
+        """Perform model-specific code generation after the object is created.
+
+        Subclasses may override to call model-specific setters on *var*.
+        """
 
     def get_dimensions(self, config) -> tuple[int, int]:
         if CONF_DIMENSIONS in config:

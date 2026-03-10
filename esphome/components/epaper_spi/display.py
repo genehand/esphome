@@ -107,6 +107,7 @@ def model_schema(config):
                 cv.positive_time_period_milliseconds,
                 cv.Range(max=core.TimePeriod(milliseconds=500)),
             ),
+            **model.get_extra_schema(),
         }
     )
 
@@ -220,3 +221,6 @@ async def to_code(config):
     )
     if transform_str:
         cg.add(var.set_transform(RawExpression(transform_str)))
+
+    # Allow the model to perform additional code generation
+    await model.to_code(var, config)
