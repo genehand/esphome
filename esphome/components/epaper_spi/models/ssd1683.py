@@ -101,7 +101,6 @@ SSD1683Model(
     # Normal-mode init sequence (EPD_4IN2_V2_Init equivalent).
     # reset() already sends 0x12 (SWRESET) and waits for idle.
     initsequence=(
-        (0x21, 0x40, 0x00),              # Display update control: bypass OTP
         (0x3C, 0x05),                    # Border waveform control
         (0x0C,) + BOOSTER_SOFT_START,    # Booster soft-start (required for stable power)
         (0x11, 0x03),                    # Data entry mode: X+, Y+ (horizontal scan)

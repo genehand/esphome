@@ -96,6 +96,9 @@ class EPaperSSD1683 final : public EPaperMono {
   /** Fast mode: write same buffer to both BW and RED RAM planes. */
   bool transfer_data_fast_();
 
+  /** Partial mode: write same buffer to both BW and RED RAM planes. */
+  bool transfer_data_partial_();
+
   // Grayscale LUT supplied from Python at code generation time
   const uint8_t *gray_lut_{};
   size_t gray_lut_length_{};
@@ -111,6 +114,12 @@ class EPaperSSD1683 final : public EPaperMono {
 
   // Transfer state for fast mode (which plane we're sending)
   bool fast_sending_red_{false};  ///< false = sending 0x24 (BW), true = sending 0x26 (RED)
+
+  // Transfer state for partial mode (which plane we're sending)
+  bool partial_sending_red_{false};  ///< false = sending 0x24 (BW), true = sending 0x26 (RED)
+
+  // Track if current update is partial (set in initialise, used in transfer_data)
+  bool current_update_is_partial_{false};
 };
 
 }  // namespace esphome::epaper_spi

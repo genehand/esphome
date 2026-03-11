@@ -159,13 +159,22 @@ bool EPaperSSD1683::initialise(bool partial) {
     if (!EPaperMono::initialise(partial)) {
       return false;
     }
-    // For fast mode, set temperature register and load fast LUT
-    // 0x6E = ~1.5s refresh, 0x5A = ~1s refresh
-    if (this->display_mode_ == SSD1683DisplayMode::FAST) {
-      this->cmd_data(0x1A, {0x6E});  // Write to temperature register
-      // Dummy update cycle to load fast mode LUT
-      this->cmd_data(0x22, {0x91});  // Enable Clock, Load LUT Mode 1, Disable Clock
-      this->command(0x20);           // Master Activation
+    this->current_update_is_partial_ = partial && this->display_mode_ == SSD1683DisplayMode::PARTIAL;
+    if (this->current_update_is_partial_) {
+      // Partial mode setup per Waveshare example
+      this->cmd_data(0x21, {0x00, 0x00});  // Display update control (no bypass)
+      this->cmd_data(0x3C, {0x80});        // Border waveform for partial
+    } else {
+      // Full and Fast modes: set display update control with bypass OTP
+      this->cmd_data(0x21, {0x40, 0x00});  // Display update control: bypass OTP
+      if (this->display_mode_ == SSD1683DisplayMode::FAST) {
+        // For fast mode, set temperature register and load fast LUT
+        // 0x6E = ~1.5s refresh, 0x5A = ~1s refresh
+        this->cmd_data(0x1A, {0x6E});  // Write to temperature register
+        // Dummy update cycle to load fast mode LUT
+        this->cmd_data(0x22, {0x91});  // Enable Clock, Load LUT Mode 1, Disable Clock
+        this->command(0x20);           // Master Activation
+      }
     }
     return true;
   }
@@ -236,10 +245,46 @@ bool HOT EPaperSSD1683::transfer_data_fast_() {
   return true;
 }
 
+bool HOT EPaperSSD1683::transfer_data_partial_() {
+  // Partial mode: write only to BW plane (0x24)
+  // The controller compares old vs new BW data for partial refresh
+  auto start_time = millis();
+
+  if (this->current_data_index_ == 0) {
+    // Set window and start BW plane (0x24)
+    this->set_window();
+    this->command(0x24);
+  }
+
+  size_t row_length = (this->x_high_ - this->x_low_) / 8;
+  this->start_data_();
+  while (this->current_data_index_ != this->y_high_) {
+    size_t data_idx = this->current_data_index_ * this->row_width_ + this->x_low_ / 8;
+    for (size_t i = 0; i != row_length; i++) {
+      this->write_byte(this->buffer_[data_idx++]);
+    }
+    ++this->current_data_index_;
+    if (millis() - start_time > MAX_TRANSFER_TIME) {
+      this->disable();
+      return false;
+    }
+  }
+  this->disable();
+  this->current_data_index_ = 0;
+
+  // Single pass for partial mode
+  return true;
+}
+
 bool HOT EPaperSSD1683::transfer_data() {
-  if (this->display_mode_ == SSD1683DisplayMode::FAST) {
-    // Fast mode: write same buffer to both BW (0x24) and RED (0x26) planes
+  if (this->display_mode_ == SSD1683DisplayMode::FAST ||
+      (this->display_mode_ == SSD1683DisplayMode::PARTIAL && !this->current_update_is_partial_)) {
+    // Fast mode or first FULL update in PARTIAL mode: write same buffer to both planes
     return this->transfer_data_fast_();
+  }
+  if (this->current_update_is_partial_) {
+    // Partial mode: write only to BW plane
+    return this->transfer_data_partial_();
   }
   if (this->display_mode_ != SSD1683DisplayMode::GRAYSCALE4) {
     // Monochrome mode: delegate entirely to EPaperMono
@@ -336,20 +381,14 @@ bool HOT EPaperSSD1683::transfer_data() {
 }
 
 void EPaperSSD1683::refresh_screen(bool partial) {
-  switch (this->display_mode_) {
-    case SSD1683DisplayMode::FAST:
-      this->cmd_data(0x22, {0xC7});
-      break;
-    case SSD1683DisplayMode::GRAYSCALE4:
-      this->cmd_data(0x22, {0xCF});
-      break;
-    case SSD1683DisplayMode::PARTIAL:
-      this->cmd_data(0x22, {0xFF});
-      break;
-    case SSD1683DisplayMode::FULL:
-    default:
-      this->cmd_data(0x22, {0xF7});
-      break;
+  if (this->display_mode_ == SSD1683DisplayMode::FAST) {
+    this->cmd_data(0x22, {0xC7});
+  } else if (this->display_mode_ == SSD1683DisplayMode::GRAYSCALE4) {
+    this->cmd_data(0x22, {0xCF});
+  } else if (this->current_update_is_partial_) {
+    this->cmd_data(0x22, {0xFF});
+  } else {
+    this->cmd_data(0x22, {0xF7});
   }
   this->command(0x20);
 }
