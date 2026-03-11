@@ -13,6 +13,7 @@ DISPLAY_MODES = {
     "full": RawExpression("esphome::epaper_spi::SSD1683DisplayMode::FULL"),
     "partial": RawExpression("esphome::epaper_spi::SSD1683DisplayMode::PARTIAL"),
     "grayscale4": RawExpression("esphome::epaper_spi::SSD1683DisplayMode::GRAYSCALE4"),
+    "fast": RawExpression("esphome::epaper_spi::SSD1683DisplayMode::FAST"),
 }
 
 

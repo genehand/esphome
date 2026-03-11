@@ -156,7 +156,18 @@ bool EPaperSSD1683::initialise(bool partial) {
     // Mono mode: use the standard init from EPaperMono (sends init_sequence_)
     // then set mono window using EPaperWaveshare/EPaperMono set_window
     // (set_window is called in transfer_data, nothing extra needed here)
-    return EPaperMono::initialise(partial);
+    if (!EPaperMono::initialise(partial)) {
+      return false;
+    }
+    // For fast mode, set temperature register and load fast LUT
+    // 0x6E = ~1.5s refresh, 0x5A = ~1s refresh
+    if (this->display_mode_ == SSD1683DisplayMode::FAST) {
+      this->cmd_data(0x1A, {0x6E});  // Write to temperature register
+      // Dummy update cycle to load fast mode LUT
+      this->cmd_data(0x22, {0x91});  // Enable Clock, Load LUT Mode 1, Disable Clock
+      this->command(0x20);           // Master Activation
+    }
+    return true;
   }
 
   // Grayscale init adapted from EPD_4IN2_V2_Init_4Gray()
@@ -186,7 +197,50 @@ bool EPaperSSD1683::initialise(bool partial) {
   return true;
 }
 
+bool HOT EPaperSSD1683::transfer_data_fast_() {
+  // Fast mode: write same buffer data to both BW (0x24) and RED (0x26) planes
+  auto start_time = millis();
+
+  if (this->current_data_index_ == 0 && !this->fast_sending_red_) {
+    // First pass: set window and start BW plane (0x24)
+    this->set_window();
+    this->command(0x24);
+  }
+
+  size_t row_length = (this->x_high_ - this->x_low_) / 8;
+  this->start_data_();
+  while (this->current_data_index_ != this->y_high_) {
+    size_t data_idx = this->current_data_index_ * this->row_width_ + this->x_low_ / 8;
+    for (size_t i = 0; i != row_length; i++) {
+      this->write_byte(this->buffer_[data_idx++]);
+    }
+    ++this->current_data_index_;
+    if (millis() - start_time > MAX_TRANSFER_TIME) {
+      this->disable();
+      return false;
+    }
+  }
+  this->disable();
+  this->current_data_index_ = 0;
+
+  if (!this->fast_sending_red_) {
+    // First pass done, start second pass for RED plane (0x26)
+    this->set_window();
+    this->command(0x26);
+    this->fast_sending_red_ = true;
+    return false;  // come back for second plane
+  }
+
+  // Both passes done
+  this->fast_sending_red_ = false;
+  return true;
+}
+
 bool HOT EPaperSSD1683::transfer_data() {
+  if (this->display_mode_ == SSD1683DisplayMode::FAST) {
+    // Fast mode: write same buffer to both BW (0x24) and RED (0x26) planes
+    return this->transfer_data_fast_();
+  }
   if (this->display_mode_ != SSD1683DisplayMode::GRAYSCALE4) {
     // Monochrome mode: delegate entirely to EPaperMono
     return EPaperMono::transfer_data();
@@ -283,6 +337,9 @@ bool HOT EPaperSSD1683::transfer_data() {
 
 void EPaperSSD1683::refresh_screen(bool partial) {
   switch (this->display_mode_) {
+    case SSD1683DisplayMode::FAST:
+      this->cmd_data(0x22, {0xC7});
+      break;
     case SSD1683DisplayMode::GRAYSCALE4:
       this->cmd_data(0x22, {0xCF});
       break;

@@ -7,9 +7,10 @@ namespace esphome::epaper_spi {
 
 /** Display modes for the SSD1683 e-paper controller. */
 enum class SSD1683DisplayMode : uint8_t {
-  FULL = 0,        ///< Full refresh using internal waveforms
-  PARTIAL = 1,     ///< Partial refresh (partial window update)
-  GRAYSCALE4 = 2,  ///< 4-shade grayscale using custom LUT
+  FULL = 0,        // Full refresh using internal waveforms
+  PARTIAL = 1,     // Partial refresh (partial window update)
+  GRAYSCALE4 = 2,  // 4-shade grayscale using custom LUT
+  FAST = 3,        // Fast refresh mode (may have ghosting)
 };
 
 /**
@@ -92,6 +93,9 @@ class EPaperSSD1683 final : public EPaperMono {
   /** Override set_window for SSD1683 which uses 2-byte X addressing. */
   void set_window() override;
 
+  /** Fast mode: write same buffer to both BW and RED RAM planes. */
+  bool transfer_data_fast_();
+
   // Grayscale LUT supplied from Python at code generation time
   const uint8_t *gray_lut_{};
   size_t gray_lut_length_{};
@@ -104,6 +108,9 @@ class EPaperSSD1683 final : public EPaperMono {
 
   // Transfer state for grayscale (which plane we're sending)
   bool gray_sending_new_data_{false};  ///< false = sending 0x24 (old), true = sending 0x26 (new)
+
+  // Transfer state for fast mode (which plane we're sending)
+  bool fast_sending_red_{false};  ///< false = sending 0x24 (BW), true = sending 0x26 (RED)
 };
 
 }  // namespace esphome::epaper_spi
