@@ -43,7 +43,6 @@ static uint8_t color_to_gray4(Color color) {
  */
 void HOT EPaperSSD1683::draw_pixel_at(int x, int y, Color color) {
   if (this->display_mode_ != SSD1683DisplayMode::GRAYSCALE4) {
-    // Fall back to monochrome pixel drawing from EPaperMono/EPaperBase
     EPaperMono::draw_pixel_at(x, y, color);
     return;
   }
@@ -88,17 +87,6 @@ void EPaperSSD1683::clear() {
 // LUT and window helpers
 // ----------------------------------------------------------------------------
 
-/**
- * Send the 233-byte grayscale LUT to the display using the SSD1683
- * split-command protocol.
- *
- * Layout (from Waveshare reference):
- *   [0..226]   → 0x32  waveform LUT (227 bytes)
- *   [227]      → 0x3F  LUT option
- *   [228]      → 0x03  gate voltage VGH
- *   [229..231] → 0x04  source voltages VSH1, VSH2, VSL
- *   [232]      → 0x2C  VCOM level
- */
 void EPaperSSD1683::send_gray_lut_() {
   if (this->gray_lut_ == nullptr || this->gray_lut_length_ < 233) {
     ESP_LOGE(TAG, "Gray LUT is missing or too short");
@@ -143,8 +131,6 @@ void EPaperSSD1683::set_window() {
 // ----------------------------------------------------------------------------
 
 void EPaperSSD1683::setup() {
-  // set_display_mode() is called by codegen before setup(), so the mode is known here.
-  // Promote buffer_length_ to grayscale size so EPaperBase::setup() allocates enough RAM.
   if (this->display_mode_ == SSD1683DisplayMode::GRAYSCALE4) {
     this->buffer_length_ = this->gray_buffer_length_;
   }
@@ -153,15 +139,11 @@ void EPaperSSD1683::setup() {
 
 bool EPaperSSD1683::initialise(bool partial) {
   if (this->display_mode_ != SSD1683DisplayMode::GRAYSCALE4) {
-    // Mono mode: use the standard init from EPaperMono (sends init_sequence_)
-    // then set mono window using EPaperWaveshare/EPaperMono set_window
-    // (set_window is called in transfer_data, nothing extra needed here)
     if (!EPaperMono::initialise(partial)) {
       return false;
     }
     this->current_update_is_partial_ = partial && this->display_mode_ == SSD1683DisplayMode::PARTIAL;
     if (this->current_update_is_partial_) {
-      // Partial mode setup per Waveshare example
       this->cmd_data(0x21, {0x00, 0x00});  // Display update control (no bypass)
       this->cmd_data(0x3C, {0x80});        // Border waveform for partial
     } else {
@@ -179,9 +161,6 @@ bool EPaperSSD1683::initialise(bool partial) {
     return true;
   }
 
-  // Grayscale init adapted from EPD_4IN2_V2_Init_4Gray()
-  // Note: reset() already sent 0x12 (SWRESET) and waited for idle
-
   // Display update control for grayscale mode
   // Note: For grayscale, we do NOT set the bypass OTP bit (0x40)
   // The LUT commands (0x32, 0x3F, etc.) directly configure the waveform
@@ -193,13 +172,11 @@ bool EPaperSSD1683::initialise(bool partial) {
   // Booster soft-start control
   this->cmd_data(0x0C, {0x8B, 0x9C, 0xA4, 0x0F});
 
-  // Load the grayscale LUT
   this->send_gray_lut_();
 
   // Data entry mode: increment X then Y
   this->cmd_data(0x11, {0x03});
 
-  // Set full display window and cursor
   this->set_full_window_();
 
   this->send_red_ = false;  // we manage both planes ourselves
@@ -323,7 +300,6 @@ bool HOT EPaperSSD1683::transfer_data() {
   // The mono row_width_ (bytes per row in 1bpp) for this display
   const size_t mono_row_width = (this->width_ + 7) / 8;
 
-  // We iterate over rows; current_data_index_ tracks current row
   this->start_data_();
   while (this->current_data_index_ < (size_t) this->height_) {
     // Extract one 1bpp row from the 2bpp buffer for the current plane

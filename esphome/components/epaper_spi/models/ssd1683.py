@@ -19,10 +19,7 @@ DISPLAY_MODES = {
 
 class SSD1683Model(EpaperModel):
     """
-    Model class for SSD1683 e-paper displays.
-
-    Accepts a 233-byte grayscale LUT used in GRAYSCALE4 display mode.
-    Also supports a ``display_mode`` config option.
+    Includes a ``display_mode`` config option.
     """
 
     def __init__(self, name, gray_lut, class_name="EPaperSSD1683", **defaults):
@@ -37,7 +34,6 @@ class SSD1683Model(EpaperModel):
         }
 
     def get_constructor_args(self, config) -> tuple:
-        # Embed the 233-byte grayscale LUT as a static const array
         lut = cg.static_const_array(
             ID(config[CONF_INIT_SEQUENCE_ID].id + "_gray_lut", type=cg.uint8),
             self.gray_lut,
@@ -50,9 +46,6 @@ class SSD1683Model(EpaperModel):
 
 
 # fmt: off
-# The 233-byte grayscale LUT for the Waveshare 4.2in V2 (SSD1683/SSD1681 compatible).
-# Source: Waveshare EPD_4in2_V2.cpp, LUT_ALL array.
-# License: MIT (see esphome/LICENSE)
 WAVESHARE_4IN2_V2_LUT = (
     0x01, 0x0A, 0x1B, 0x0F, 0x03, 0x01, 0x01,
     0x05, 0x0A, 0x01, 0x0A, 0x01, 0x01, 0x01,
@@ -90,7 +83,6 @@ WAVESHARE_4IN2_V2_LUT = (
     0x32, 0x30,
 )
 
-# Booster soft-start values from Waveshare reference
 BOOSTER_SOFT_START = (0x8B, 0x9C, 0xA4, 0x0F)
 
 SSD1683Model(
@@ -98,11 +90,9 @@ SSD1683Model(
     width=400,
     height=300,
     gray_lut=WAVESHARE_4IN2_V2_LUT,
-    # Normal-mode init sequence (EPD_4IN2_V2_Init equivalent).
-    # reset() already sends 0x12 (SWRESET) and waits for idle.
     initsequence=(
         (0x3C, 0x05),                    # Border waveform control
-        (0x0C,) + BOOSTER_SOFT_START,    # Booster soft-start (required for stable power)
+        (0x0C,) + BOOSTER_SOFT_START,    # Required for stable power
         (0x11, 0x03),                    # Data entry mode: X+, Y+ (horizontal scan)
         (0x44, 0x00, 0x31),              # Set RAM X address: start=0, end=49 (400/8-1)
         (0x45, 0x00, 0x00, 0x2B, 0x01),  # Set RAM Y address: start=0, end=299
