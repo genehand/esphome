@@ -191,10 +191,52 @@ display:
       it.circle(it.get_width() / 2, it.get_height() / 2, 20, Color::BLACK);
       it.circle(it.get_width() / 2, it.get_height() / 2, 15, Color(255, 0, 0));
 
+  - platform: epaper_spi
+    spi_id: spi_bus
+    model: waveshare-4.2in-v2
+    cs_pin:
+      allow_other_uses: true
+      number: GPIO5
+    dc_pin:
+      allow_other_uses: true
+      number: GPIO17
+    reset_pin:
+      allow_other_uses: true
+      number: GPIO16
+    busy_pin:
+      allow_other_uses: true
+      number: GPIO4
+    lambda: |-
+      it.filled_rectangle(0, 0, it.get_width(), it.get_height(), Color::WHITE);
+      it.circle(it.get_width() / 2, it.get_height() / 2, 20, Color::BLACK);
+      it.circle(it.get_width() / 2, it.get_height() / 2, 15, Color(255, 0, 0));
+
   # Soldered Inkplate 2 3-color e-paper (104x212, BWR)
   - platform: epaper_spi
     spi_id: spi_bus
     model: inkplate2
+    update_interval: 60s
+    cs_pin:
+      allow_other_uses: true
+      number: GPIO5
+    dc_pin:
+      allow_other_uses: true
+      number: GPIO17
+    reset_pin:
+      allow_other_uses: true
+      number: GPIO16
+    busy_pin:
+      allow_other_uses: true
+      number: GPIO4
+    lambda: |-
+      it.filled_rectangle(0, 0, it.get_width(), it.get_height(), Color::WHITE);
+      it.circle(it.get_width() / 2, it.get_height() / 2, 20, Color::BLACK);
+      it.circle(it.get_width() / 2, it.get_height() / 2, 15, Color(255, 0, 0));
+
+  - platform: epaper_spi
+    spi_id: spi_bus
+    model: waveshare-4.2in-v2
+    display_mode: grayscale4
     cs_pin:
       allow_other_uses: true
       number: GPIO5
@@ -255,3 +297,9 @@ display:
       it.filled_rectangle(0, 0, it.get_width(), it.get_height(), Color::WHITE);
       it.circle(it.get_width() / 2, it.get_height() / 2, 100, Color::BLACK);
       it.circle(it.get_width() / 2, it.get_height() / 2, 60, Color(255, 0, 0));
+    update_interval: 60s
+    lambda: |-
+      it.circle(200, 150, 100, Color(255, 255, 255));
+      it.circle(200, 150, 70, Color(170, 170, 170));
+      it.circle(200, 150, 40, Color(85, 85, 85));
+      it.filled_circle(200, 150, 15, Color(0, 0, 0));
