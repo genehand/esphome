@@ -41,6 +41,8 @@ class EPaperSSD1683Waveshare final : public EPaperMono {
 
   void set_display_mode(SSD1683DisplayMode mode) { this->display_mode_ = mode; }
 
+  bool is_updating() const { return this->state_ != EPaperState::IDLE; }
+
   /**
    * Override setup() to promote buffer_length_ to grayscale size before EPaperBase
    * allocates the SplitBuffer. set_display_mode() is called before setup().
