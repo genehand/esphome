@@ -74,6 +74,7 @@ class SSD1683WaveshareModel(EpaperModel):
     async def to_code(self, var, config):
         mode = config.get(CONF_DISPLAY_MODE, "full")
         cg.add(var.set_display_mode(DISPLAY_MODES[mode]))
+        return config
 
 
 # fmt: off
